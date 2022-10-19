@@ -1,0 +1,15 @@
+sources = ['generate.cpp',
+           'http_server.cpp',
+           'main.cpp',
+           'mime.cpp',
+           'parseqs.cpp',
+           'path.cpp',
+           'server_certificate.cpp']
+http_server_executable = executable('http_server',
+                                    sources,
+                                    include_directories : inc,
+                                    dependencies : [boost_dep,
+                                                    openssl_dep,
+                                                    thread_dep,
+                                                    sqlite_dep,
+                                                    inja_dep])
