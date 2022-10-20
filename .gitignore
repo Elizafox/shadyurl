@@ -36,3 +36,10 @@ builddir/
 
 # Certs
 *.pem
+
+# Cores
+*.core
+
+# Subprojects
+subprojects/*
+!subprojects/*.wrap
