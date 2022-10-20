@@ -43,3 +43,6 @@ builddir/
 # Subprojects
 subprojects/*
 !subprojects/*.wrap
+
+# Databases
+*.db
