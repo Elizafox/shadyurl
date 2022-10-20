@@ -5,6 +5,9 @@ project('http_server',
 inja_proj = subproject('inja')
 inja_dep = inja_proj.get_variable('inja_dep')
 
+multipart_parser_c_proj = subproject('multipart_parser_c')
+multipart_parser_c_dep = multipart_parser_c_proj.get_variable('multipart_parser_c_dep')
+
 boost_dep = dependency('boost', modules : ['coroutine'])
 openssl_dep = dependency('openssl')
 thread_dep = dependency('threads')

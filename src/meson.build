@@ -12,4 +12,5 @@ http_server_executable = executable('http_server',
                                                     openssl_dep,
                                                     thread_dep,
                                                     sqlite_dep,
-                                                    inja_dep])
+                                                    inja_dep,
+                                                    multipart_parser_c_dep])
