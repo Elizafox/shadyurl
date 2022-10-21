@@ -232,10 +232,14 @@ handle_request(
 			std::string url;
 
 		       	if(req.method() != http::verb::post)
+			{
 				// POST requests only please!
 				return send(bad_request(req, "Unknown HTTP-method"));
+			}
 
-			if(req["Content-Type"] == "application/x-www-url-form-urlencoded")
+			std::string_view content_type = req["Content-Type"];
+
+			if(content_type == "application/x-www-url-form-urlencoded")
 			{
 				std::map qsm = parseqs::parse_qsl(req.body());
 				auto it = qsm.find("url");
@@ -246,11 +250,11 @@ handle_request(
 
 				url = it->second;
 			}
-			else if(req["Content-Type"].starts_with("multipart/form-data"))
+			else if(content_type.starts_with("multipart/form-data"))
 			{
 				using MultiPartData = multipart_wrapper::MultiPartData;
 				using MultiPartSection = MultiPartData::MultiPartSection;
-				auto hv = MultiPartSection::parse_header_value(req["Content-Type"]);
+				auto hv = MultiPartSection::parse_header_value(content_type);
 
 				if(std::holds_alternative<std::string>(hv))
 				{
@@ -291,7 +295,7 @@ handle_request(
 			}
 			else
 			{
-				return send(bad_request(req, "Bad request type"));
+				return send(bad_request(req, "Bad content type " + std::string(content_type)));
 			}
 
 			if(!(url.starts_with("http://") || url.starts_with("https://")))
