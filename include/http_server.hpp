@@ -25,12 +25,15 @@
 #include <thread>
 #include <vector>
 #include <map>
+#include <iomanip>
+#include <sstream>
 
 #include "generate.hpp"
 #include "mime.hpp"
 #include "parseqs.hpp"
 #include "path.hpp"
 #include "sqlite_helper.hpp"
+#include "multipart_wrapper.hpp"
 
 namespace http_server
 {
@@ -226,24 +229,70 @@ handle_request(
 
 		if(req.target() == "/post.html")
 		{
+			std::string url;
+
 		       	if(req.method() != http::verb::post)
 				// POST requests only please!
 				return send(bad_request(req, "Unknown HTTP-method"));
 
-			if(req["Content-Type"] != "application/x-www-form-urlencoded")
+			if(req["Content-Type"] == "application/x-www-url-form-urlencoded")
 			{
-				// I'm too lazy to do multipart forms.
-				return send(bad_request(req, "Multipart forms not accepted"));
-			}
+				std::map qsm = parseqs::parse_qsl(req.body());
+				auto it = qsm.find("url");
+				if(it == qsm.end())
+				{
+					return send(bad_request(req, "No URL parameter passed"));
+				}
 
-			std::map qsm = parseqs::parse_qsl(req.body());
-			auto it = qsm.find("url");
-			if(it == qsm.end())
+				url = it->second;
+			}
+			else if(req["Content-Type"].starts_with("multipart/form-data"))
 			{
-				return send(bad_request(req, "No URL parameter passed"));
-			}
+				using MultiPartData = multipart_wrapper::MultiPartData;
+				using MultiPartSection = MultiPartData::MultiPartSection;
+				auto hv = MultiPartSection::parse_header_value(req["Content-Type"]);
 
-			std::string url = it->second;
+				if(std::holds_alternative<std::string>(hv))
+				{
+					return send(bad_request(req, "Bad request"));
+				}
+
+				auto hvmap = std::get<MultiPartSection::header_params_type>(hv);
+				std::string boundary{hvmap["boundary"]};
+				if(boundary.empty())
+				{
+					return send(bad_request(req, "Bad request"));
+				}
+
+				MultiPartData mpd{boundary};
+				mpd.ingest(req.body());
+				auto form_data = mpd.get_data();
+				for(auto& elem : form_data)
+				{
+					auto h = elem.get_headers();
+					auto cd = h["Content-Disposition"];
+					if(std::holds_alternative<std::string>(cd))
+					{
+						continue;
+					}
+
+					auto cdmap = std::get<MultiPartSection::header_params_type>(cd);
+					if(cdmap["name"] == "url")
+					{
+						url = elem.get_data();
+						break;
+					}
+				}
+
+				if(url == "")
+				{
+					return send(bad_request(req, "No URL specified"));
+				}
+			}
+			else
+			{
+				return send(bad_request(req, "Bad request type"));
+			}
 
 			if(!(url.starts_with("http://") || url.starts_with("https://")))
 			{

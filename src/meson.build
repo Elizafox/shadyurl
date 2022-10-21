@@ -2,6 +2,7 @@ sources = ['generate.cpp',
            'http_server.cpp',
            'main.cpp',
            'mime.cpp',
+           'multipart_wrapper.cpp',
            'parseqs.cpp',
            'path.cpp',
            'server_certificate.cpp']
