@@ -25,7 +25,6 @@
 #include <thread>
 #include <vector>
 #include <map>
-#include <iomanip>
 #include <sstream>
 
 #include "generate.hpp"
@@ -154,6 +153,240 @@ auto bad_request_string(
 	return res;
 }
 
+// Produce an HTTP response for a file request
+template<class Body, class Allocator, class Send>
+void
+handle_file(
+	std::string_view doc_root,
+	std::shared_ptr<mime_type::MimeTypeMap const> const& mtm,
+	http::request<Body, http::basic_fields<Allocator>>&& req,
+	Send&& send)
+{
+	// Build the path to the requested file
+	std::string path = path_cat(doc_root, req.target());
+
+	// Make sure we can handle the method
+	if(req.method() != http::verb::get &&
+		req.method() != http::verb::head)
+	{
+		return send(bad_request(req, "Unknown HTTP-method"));
+	}
+
+	// Attempt to open the file
+	beast::error_code ec;
+	http::file_body::value_type body;
+	body.open(path.c_str(), beast::file_mode::scan, ec);
+
+	// Handle the case where the file doesn't exist
+	if(ec == beast::errc::no_such_file_or_directory)
+		return send(not_found(req, req.target()));
+
+	// Handle an unknown error
+	if(ec)
+		return send(server_error(req, ec.message()));
+
+	// Respond to HEAD request
+	if(req.method() == http::verb::head)
+	{
+		return send(ok_head_file(req, path, std::move(body), mtm));
+	}
+	else if(req.method() == http::verb::get)
+	{
+		return send(ok_get_file(req, path, std::move(body), mtm));
+	}
+	else
+	{
+		return send(bad_request(req, "Unknown HTTP method"));
+	}
+}
+
+// Produce an HTTP response for a post request
+template<class Body, class Allocator, class Send>
+void
+handle_post(
+	std::string_view doc_root,
+	std::shared_ptr<mime_type::MimeTypeMap const> const& mtm,
+	http::request<Body, http::basic_fields<Allocator>>&& req,
+	Send&& send)
+{
+	// These are templated pages
+	// Off to the templating engine
+	inja::Environment env;
+	inja::json data;
+	std::string url;
+
+	std::string_view content_type = req["Content-Type"];
+
+	if(content_type == "application/x-www-url-form-urlencoded")
+	{
+		std::map qsm = parseqs::parse_qsl(req.body());
+		auto it = qsm.find("url");
+		if(it == qsm.end())
+		{
+			return send(bad_request(req, "No URL parameter passed"));
+		}
+
+		url = it->second;
+	}
+	else if(content_type.starts_with("multipart/form-data"))
+	{
+		using MultiPartData = multipart_wrapper::MultiPartData;
+		using MultiPartSection = MultiPartData::MultiPartSection;
+		auto hv = MultiPartSection::parse_header_value(content_type);
+
+		if(std::holds_alternative<std::string>(hv))
+		{
+			return send(bad_request(req, "Bad request"));
+		}
+
+		auto hvmap = std::get<MultiPartSection::header_params_type>(hv);
+		std::string boundary{hvmap["boundary"]};
+		if(boundary.empty())
+		{
+			return send(bad_request(req, "Bad request"));
+		}
+
+		MultiPartData mpd{boundary};
+		mpd.ingest(req.body());
+		auto form_data = mpd.get_data();
+		for(auto& elem : form_data)
+		{
+			auto h = elem.get_headers();
+			auto cd = h["Content-Disposition"];
+			if(std::holds_alternative<std::string>(cd))
+			{
+				continue;
+			}
+
+			auto cdmap = std::get<MultiPartSection::header_params_type>(cd);
+			if(cdmap["name"] == "url")
+			{
+				url = elem.get_data();
+				break;
+			}
+		}
+
+		if(url == "")
+		{
+			return send(bad_request(req, "No URL specified"));
+		}
+	}
+	else
+	{
+		return send(bad_request(req, "Bad content type " + std::string(content_type)));
+	}
+
+	if(!(url.starts_with("http://") || url.starts_with("https://")))
+	{
+		return send(bad_request(req, "Invalid URL"));
+	}
+
+	std::string token = generate::generate_random_filename();
+	data["url"] = url;
+	data["token"] = token;
+
+	auto db = sqlite_helper::make_sqlite3_handle("urls.db");
+	sqlite3_stmt *res;
+	int rc = sqlite3_prepare_v2(
+		db.get(),
+		"INSERT INTO urls (token, url) VALUES (?, ?);",
+		-1,
+		&res,
+		nullptr);
+	if(rc != SQLITE_OK)
+	{
+		return send(server_error(req, "SQL error:" + std::string(sqlite3_errmsg(db.get()))));
+	}
+
+	sqlite_helper::scope_exit cleanup{[&] { sqlite3_finalize(res); }};
+
+	sqlite3_bind_text(res, 1, token.c_str(), -1, SQLITE_STATIC);
+	sqlite3_bind_text(res, 2, url.c_str(), -1, SQLITE_STATIC);
+
+	int step = sqlite3_step(res);
+	if(step != SQLITE_DONE)
+	{
+		return send(server_error(req, "SQL error:" + std::string(sqlite3_errmsg(db.get()))));
+	}
+}
+
+// Handle serving a template
+template<class Body, class Allocator, class Send>
+void
+handle_get_template(
+	std::string_view doc_root,
+	std::shared_ptr<mime_type::MimeTypeMap const> const& mtm,
+	http::request<Body, http::basic_fields<Allocator>>&& req,
+	Send&& send)
+{
+	// These are templated pages
+	// Off to the templating engine
+	std::string path = path_cat(doc_root, req.target());
+
+	inja::Environment env;
+	inja::json data;
+
+	inja::Template temp;
+	std::string result;
+	try
+	{
+		temp = env.parse_template(path);
+		result = env.render(temp, data);
+	}
+	catch(std::exception& e)
+	{
+		return send(bad_request(req, std::string("Could not serve page: ") + e.what()));
+	}
+
+	return send(ok_string(req, result));
+}
+
+// Handle getting a shortened/shady URL
+template<class Body, class Allocator, class Send>
+void
+handle_get_url(
+	std::string_view doc_root,
+	std::shared_ptr<mime_type::MimeTypeMap const> const& mtm,
+	http::request<Body, http::basic_fields<Allocator>>&& req,
+	Send&& send)
+{
+	// We assume this is a shortened URL otherwise.
+	auto db = sqlite_helper::make_sqlite3_handle("urls.db");
+	sqlite3_stmt *res;
+	int rc = sqlite3_prepare_v2(
+		db.get(),
+		"SELECT url FROM urls WHERE token = (?);",
+		-1,
+		&res,
+		nullptr);
+	if(rc != SQLITE_OK)
+	{
+		return send(server_error(req, "SQL error:" + std::string(sqlite3_errmsg(db.get()))));
+	}
+
+	sqlite_helper::scope_exit cleanup{[&] { sqlite3_finalize(res); }};
+
+	std::string token{req.target().substr(1)};
+	rc = sqlite3_bind_text(res, 1, token.c_str(), -1, SQLITE_STATIC);
+	if(rc != SQLITE_OK)
+	{
+		return send(server_error(req, "SQL error:" + std::string(sqlite3_errmsg(db.get()))));
+	}
+
+	std::string url;
+	int step = sqlite3_step(res);
+	if(step == SQLITE_ROW)
+	{
+		url = reinterpret_cast<const char*>(sqlite3_column_text(res, 0));
+	}
+	else
+	{
+		// ;)
+		url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ?autoplay=1";
+	}
+	return send(redirect_permanent(req, url));
+}
+
 // This function produces an HTTP response for the given
 // request. The type of the response object depends on the
 // contents of the request, so the interface requires the
@@ -178,179 +411,37 @@ handle_request(
 
 	// Build the path to the requested file
 	std::string path = path_cat(doc_root, req.target());
-	if(req.target().back() == '/')
-		path.append("index.html");
 
 	// Physical files we shouldn't preprocess
 	if(req.target().starts_with("/assets/") ||
 		req.target() == "/favicon.ico" ||
 		req.target() == "/robots.txt")
 	{
-		// Make sure we can handle the method
-		if(req.method() != http::verb::get &&
-			req.method() != http::verb::head)
-		{
-			return send(bad_request(req, "Unknown HTTP-method"));
-		}
-
-		// Attempt to open the file
-		beast::error_code ec;
-		http::file_body::value_type body;
-		body.open(path.c_str(), beast::file_mode::scan, ec);
-
-		// Handle the case where the file doesn't exist
-		if(ec == beast::errc::no_such_file_or_directory)
-			return send(not_found(req, req.target()));
-
-		// Handle an unknown error
-		if(ec)
-			return send(server_error(req, ec.message()));
-
-		// Respond to HEAD request
-		if(req.method() == http::verb::head)
-		{
-			return send(ok_head_file(req, path, std::move(body), mtm));
-		}
-		else if(req.method() == http::verb::get)
-		{
-			return send(ok_get_file(req, path, std::move(body), mtm));
-		}
-		else
-		{
-			return send(bad_request(req, "Unknown HTTP method"));
-		}
+		return handle_file(doc_root, mtm, std::move(req), std::move(send));
 	}
 	else if(req.target().ends_with(".html") || req.target().back() == '/')
 	{
-		// These are templated pages
-		// Off to the templating engine
-		inja::Environment env;
-		inja::json data;
-
 		if(req.target() == "/post.html")
 		{
-			std::string url;
-
-		       	if(req.method() != http::verb::post)
+			if(req.method() != http::verb::post)
 			{
 				// POST requests only please!
 				return send(bad_request(req, "Unknown HTTP-method"));
 			}
 
-			std::string_view content_type = req["Content-Type"];
-
-			if(content_type == "application/x-www-url-form-urlencoded")
-			{
-				std::map qsm = parseqs::parse_qsl(req.body());
-				auto it = qsm.find("url");
-				if(it == qsm.end())
-				{
-					return send(bad_request(req, "No URL parameter passed"));
-				}
-
-				url = it->second;
-			}
-			else if(content_type.starts_with("multipart/form-data"))
-			{
-				using MultiPartData = multipart_wrapper::MultiPartData;
-				using MultiPartSection = MultiPartData::MultiPartSection;
-				auto hv = MultiPartSection::parse_header_value(content_type);
-
-				if(std::holds_alternative<std::string>(hv))
-				{
-					return send(bad_request(req, "Bad request"));
-				}
-
-				auto hvmap = std::get<MultiPartSection::header_params_type>(hv);
-				std::string boundary{hvmap["boundary"]};
-				if(boundary.empty())
-				{
-					return send(bad_request(req, "Bad request"));
-				}
-
-				MultiPartData mpd{boundary};
-				mpd.ingest(req.body());
-				auto form_data = mpd.get_data();
-				for(auto& elem : form_data)
-				{
-					auto h = elem.get_headers();
-					auto cd = h["Content-Disposition"];
-					if(std::holds_alternative<std::string>(cd))
-					{
-						continue;
-					}
-
-					auto cdmap = std::get<MultiPartSection::header_params_type>(cd);
-					if(cdmap["name"] == "url")
-					{
-						url = elem.get_data();
-						break;
-					}
-				}
-
-				if(url == "")
-				{
-					return send(bad_request(req, "No URL specified"));
-				}
-			}
-			else
-			{
-				return send(bad_request(req, "Bad content type " + std::string(content_type)));
-			}
-
-			if(!(url.starts_with("http://") || url.starts_with("https://")))
-			{
-				return send(bad_request(req, "Invalid URL"));
-			}
-
-			std::string token = generate::generate_random_filename();
-			data["url"] = url;
-			data["token"] = token;
-
-			auto db = sqlite_helper::make_sqlite3_handle("urls.db");
-			sqlite3_stmt *res;
-			int rc = sqlite3_prepare_v2(
-				db.get(),
-				"INSERT INTO urls (token, url) VALUES (?, ?);",
-				-1,
-				&res,
-				nullptr); 
-			if(rc != SQLITE_OK)
-			{
-				return send(server_error(req, "SQL error:" + std::string(sqlite3_errmsg(db.get()))));
-			}
-			
-			sqlite_helper::scope_exit cleanup{[&] { sqlite3_finalize(res); }};
-		
-			sqlite3_bind_text(res, 1, token.c_str(), -1, SQLITE_STATIC);
-			sqlite3_bind_text(res, 2, url.c_str(), -1, SQLITE_STATIC);
-
-			int step = sqlite3_step(res);
-			if(step != SQLITE_DONE)
-			{
-				return send(server_error(req, "SQL error:" + std::string(sqlite3_errmsg(db.get()))));
-			}
+			return handle_post(doc_root, mtm, std::move(req), std::move(send));
 		}
 		else
 		{
 			if(req.method() != http::verb::get)
+			{
 				// GET requests only please!
 				return send(bad_request(req, "Unknown HTTP-method"));
+			}
+
+			return handle_get_template(doc_root, mtm, std::move(req), std::move(send));
 		}
 
-		inja::Template temp;
-		std::string result;
-		try
-		{
-			temp = env.parse_template(path);
-			result = env.render(temp, data);
-		}
-		catch(std::exception& e)
-		{
-			return send(bad_request(req, std::string("Could not serve page: ") + e.what()));
-		}
-		
-		return send(ok_string(req, result));
 	}
 	else if(std::count(req.target().begin(), req.target().end(), '/') == 1)
 	{
@@ -360,41 +451,7 @@ handle_request(
 			return send(bad_request(req, "Unknown HTTP-method"));
 		}
 
-		// We assume this is a shortened URL otherwise.
-		auto db = sqlite_helper::make_sqlite3_handle("urls.db");
-		sqlite3_stmt *res;
-		int rc = sqlite3_prepare_v2(
-			db.get(),
-			"SELECT url FROM urls WHERE token = (?);",
-			-1,
-			&res,
-			nullptr); 
-		if(rc != SQLITE_OK)
-		{
-			return send(server_error(req, "SQL error:" + std::string(sqlite3_errmsg(db.get()))));
-		}
-		
-		sqlite_helper::scope_exit cleanup{[&] { sqlite3_finalize(res); }};
-
-		std::string token{req.target().substr(1)};
-		rc = sqlite3_bind_text(res, 1, token.c_str(), -1, SQLITE_STATIC);
-		if(rc != SQLITE_OK)
-		{
-			return send(server_error(req, "SQL error:" + std::string(sqlite3_errmsg(db.get()))));
-		}
-
-		std::string url;
-		int step = sqlite3_step(res);
-		if(step == SQLITE_ROW)
-		{
-			url = reinterpret_cast<const char*>(sqlite3_column_text(res, 0));
-		}
-		else
-		{
-			// ;)
-			url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ?autoplay=1";
-		}
-		return send(redirect_permanent(req, url));
+		return handle_get_url(doc_root, mtm, std::move(req), std::move(send));
 	}
 	else
 	{
