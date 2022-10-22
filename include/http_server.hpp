@@ -455,7 +455,7 @@ handle_request(
 			std::shared_ptr<mime_type::MimeTypeMap const> const&,
 			http::request<Body, http::basic_fields<Allocator>>&&,
 			Send&&);
-	const std::vector<std::tuple<std::regex, fn_ptr_type>> routes{
+	static const std::vector<std::tuple<std::regex, fn_ptr_type>> routes{
 		REQ_ROUTE_DEF(R"RE(^/(assets/.*|favicon\.ico|robots\.txt)$)RE", handle_file),
 		REQ_ROUTE_DEF(R"RE(^/post\.html$)RE", handle_post),
 		REQ_ROUTE_DEF(R"RE(^/$)RE", handle_get_template),
