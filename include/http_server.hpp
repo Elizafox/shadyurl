@@ -338,6 +338,9 @@ handle_get_template(
 	// Off to the templating engine
 	std::string path = path_cat(doc_root, req.target());
 
+	if(req.target().back() == '/')
+		path.append("index.html");
+
 	inja::Environment env;
 	inja::json data;
 
