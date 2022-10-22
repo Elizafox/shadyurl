@@ -17,7 +17,7 @@
 #define BOOST_BEAST_USE_STD_STRING_VIEW
 
 #include "server_certificate.hpp"
-#include "http_server.hpp"
+#include "session.hpp"
 #include "path.hpp"
 #include "toml.hpp"
 
@@ -27,6 +27,7 @@
 #include <boost/asio/spawn.hpp>
 #include <boost/asio/signal_set.hpp>
 #include <boost/config.hpp>
+
 #include <algorithm>
 #include <cstdlib>
 #include <cinttypes>
@@ -94,7 +95,7 @@ int main(int argc, char* argv[])
 	load_server_certificate(ctx);
 
 	// Create and launch a listening port
-	std::make_shared<http_server::listener>(
+	std::make_shared<session::listener>(
 		ioc,
 		ctx,
 		tcp::endpoint{address, port},
@@ -104,7 +105,7 @@ int main(int argc, char* argv[])
 	if(cfg_port2)
 	{
 		auto const port2 = static_cast<unsigned short>(*cfg_port2);
-		std::make_shared<http_server::listener>(
+		std::make_shared<session::listener>(
 			ioc,
 			ctx,
 			tcp::endpoint{address, port2},

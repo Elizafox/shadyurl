@@ -1,23 +1,9 @@
-#ifndef HTTP_SERVER_H
-#define HTTP_SERVER_H
+#ifndef SESSION_H
+#define SESSION_H
 
 #ifndef BOOST_BEAST_USE_STD_STRING_VIEW
 #	define BOOST_BEAST_USE_STD_STRING_VIEW
 #endif
-
-#include <boost/beast/core.hpp>
-#include <boost/beast/http.hpp>
-#include <boost/beast/ssl.hpp>
-#include <boost/beast/version.hpp>
-#include <boost/asio/bind_executor.hpp>
-#include <boost/asio/dispatch.hpp>
-#include <boost/asio/signal_set.hpp>
-#include <boost/asio/steady_timer.hpp>
-#include <boost/asio/strand.hpp>
-#include <boost/make_unique.hpp>
-#include <boost/optional.hpp>
-
-#include <inja/inja.hpp>
 
 #include <algorithm>
 #include <cstdlib>
@@ -32,14 +18,9 @@
 #include <regex>
 #include <utility>
 
-#include "generate.hpp"
-#include "mime.hpp"
-#include "parseqs.hpp"
-#include "path.hpp"
-#include "sqlite_helper.hpp"
-#include "multipart_wrapper.hpp"
+#include "request.hpp"
 
-namespace http_server
+namespace session
 {
 
 namespace beast = boost::beast;		// from <boost/beast.hpp>
@@ -586,7 +567,7 @@ class http_session
 
 			// Allocate and store the work
 			items_.push_back(
-				boost::make_unique<work_impl>(self_, std::move(msg)));
+				std::make_unique<work_impl>(self_, std::move(msg)));
 
 			// If there was no previous work, start this one
 			if(items_.size() == 1)
@@ -600,7 +581,7 @@ class http_session
 
 	// The parser is stored in an optional container so we can
 	// construct it from scratch it at the beginning of each new message.
-	boost::optional<http::request_parser<http::string_body>> parser_;
+	std::optional<http::request_parser<http::string_body>> parser_;
 
 protected:
 	beast::flat_buffer buffer_;
@@ -801,6 +782,6 @@ private:
 
 };
 
-} // namespace http_server
+} // namespace session
 
-#endif // HTTP_SERVER_H
+#endif // SESSION_H

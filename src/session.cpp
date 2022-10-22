@@ -15,7 +15,7 @@
 
 
 #include "server_certificate.hpp"
-#include "http_server.hpp"
+#include "session.hpp"
 #include "path.hpp"
 
 #include <boost/beast/core.hpp>
@@ -45,7 +45,7 @@ namespace ssl = boost::asio::ssl;	// from <boost/asio/ssl.hpp>
 using tcp = boost::asio::ip::tcp;	// from <boost/asio/ip/tcp.hpp>
 
 
-namespace http_server
+namespace session
 {
 
 //------------------------------------------------------------------------------
@@ -314,4 +314,4 @@ listener::on_accept(beast::error_code ec, tcp::socket socket)
 	do_accept();
 }
 
-}
+} // namespace session
