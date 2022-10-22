@@ -5,6 +5,8 @@
 #	define BOOST_BEAST_USE_STD_STRING_VIEW
 #endif
 
+#include <boost/beast/ssl.hpp>
+
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
