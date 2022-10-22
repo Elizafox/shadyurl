@@ -14,8 +14,6 @@
 //------------------------------------------------------------------------------
 
 
-#define BOOST_BEAST_USE_STD_STRING_VIEW
-
 #include "server_certificate.hpp"
 #include "http_server.hpp"
 #include "path.hpp"

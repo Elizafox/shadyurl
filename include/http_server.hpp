@@ -1,6 +1,10 @@
 #ifndef HTTP_SERVER_H
 #define HTTP_SERVER_H
 
+#ifndef BOOST_BEAST_USE_STD_STRING_VIEW
+#	define BOOST_BEAST_USE_STD_STRING_VIEW
+#endif
+
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/ssl.hpp>
