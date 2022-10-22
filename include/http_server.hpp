@@ -216,6 +216,11 @@ handle_post(
 		return send(bad_request(req, "Unknown HTTP-method"));
 	}
 
+	std::string path = path_cat(doc_root, req.target());
+
+	if(req.target().back() == '/')
+		path.append("index.html");
+
 	// These are templated pages
 	// Off to the templating engine
 	inja::Environment env;
@@ -317,6 +322,21 @@ handle_post(
 	{
 		return send(server_error(req, "SQL error:" + std::string(sqlite3_errmsg(db.get()))));
 	}
+
+	inja::Template temp;
+	std::string result;
+
+	try
+	{
+		temp = env.parse_template(path);
+		result = env.render(temp, data);
+	}
+	catch(std::exception& e)
+	{
+		return send(bad_request(req, std::string("Could not serve page: ") + e.what()));
+	}
+
+	return send(ok_string(req, result));
 }
 
 // Handle serving a template
