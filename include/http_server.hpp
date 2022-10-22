@@ -247,7 +247,9 @@ handle_post(
 		}
 
 		MultiPartData mpd{boundary};
-		mpd.ingest(req.body());
+		std::string body{req.body()};
+		boost::trim_right(body);
+		mpd.ingest(body);
 		auto form_data = mpd.get_data();
 		for(auto& elem : form_data)
 		{
