@@ -224,7 +224,7 @@ handle_post(
 
 	std::string_view content_type = req["Content-Type"];
 
-	if(content_type == "application/x-www-url-form-urlencoded")
+	if(content_type == "application/x-www-form-urlencoded")
 	{
 		std::map qsm = parseqs::parse_qsl(req.body());
 		auto it = qsm.find("url");
