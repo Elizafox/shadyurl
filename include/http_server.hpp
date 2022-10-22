@@ -18,14 +18,15 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
-#include <functional>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
 #include <vector>
 #include <map>
-#include <sstream>
+#include <tuple>
+#include <regex>
+#include <utility>
 
 #include "generate.hpp"
 #include "mime.hpp"
@@ -209,6 +210,12 @@ handle_post(
 	http::request<Body, http::basic_fields<Allocator>>&& req,
 	Send&& send)
 {
+	if(req.method() != http::verb::post)
+	{
+		// POST requests only please!
+		return send(bad_request(req, "Unknown HTTP-method"));
+	}
+
 	// These are templated pages
 	// Off to the templating engine
 	inja::Environment env;
@@ -321,6 +328,12 @@ handle_get_template(
 	http::request<Body, http::basic_fields<Allocator>>&& req,
 	Send&& send)
 {
+	if(req.method() != http::verb::get)
+	{
+		// GET requests only please!
+		return send(bad_request(req, "Unknown HTTP-method"));
+	}
+
 	// These are templated pages
 	// Off to the templating engine
 	std::string path = path_cat(doc_root, req.target());
@@ -352,6 +365,12 @@ handle_get_url(
 	http::request<Body, http::basic_fields<Allocator>>&& req,
 	Send&& send)
 {
+	if(req.method() != http::verb::get)
+	{
+		// GET requests only please!
+		return send(bad_request(req, "Unknown HTTP-method"));
+	}
+
 	// We assume this is a shortened URL otherwise.
 	auto db = sqlite_helper::make_sqlite3_handle("urls.db");
 	sqlite3_stmt *res;
@@ -389,13 +408,13 @@ handle_get_url(
 	return send(redirect_permanent(req, url));
 }
 
+#define REQ_ROUTE_DEF(re, fn) {std::regex{re}, static_cast<fn_ptr_type>(&fn)}
+
 // This function produces an HTTP response for the given
 // request. The type of the response object depends on the
 // contents of the request, so the interface requires the
 // caller to pass a generic lambda for receiving the response.
-template<
-	class Body, class Allocator,
-	class Send>
+template<class Body, class Allocator, class Send>
 void
 handle_request(
 	std::string_view doc_root,
@@ -403,6 +422,20 @@ handle_request(
 	http::request<Body, http::basic_fields<Allocator>>&& req,
 	Send&& send)
 {
+	using fn_ptr_type =
+		void(*)(
+			std::string_view,
+			std::shared_ptr<mime_type::MimeTypeMap const> const&,
+			http::request<Body, http::basic_fields<Allocator>>&&,
+			Send&&);
+	const std::vector<std::tuple<std::regex, fn_ptr_type>> routes{
+		REQ_ROUTE_DEF(R"RE(^/(assets/.*|favicon\.ico|robots\.txt)$)RE", handle_file),
+		REQ_ROUTE_DEF(R"RE(^/post\.html$)RE", handle_post),
+		REQ_ROUTE_DEF(R"RE(^/$)RE", handle_get_template),
+		REQ_ROUTE_DEF(R"RE(^/(.*\.html)?$)RE", handle_get_template),
+		REQ_ROUTE_DEF(R"RE(^/[^/]+$)RE", handle_get_url),
+	};
+
 	// Request path must be absolute and not contain "..".
 	if(req.target().empty() ||
 		req.target()[0] != '/' ||
@@ -411,54 +444,21 @@ handle_request(
 		return send(bad_request(req, "Illegal request-target"));
 	}
 
-	// Build the path to the requested file
-	std::string path = path_cat(doc_root, req.target());
-
-	// Physical files we shouldn't preprocess
-	if(req.target().starts_with("/assets/") ||
-		req.target() == "/favicon.ico" ||
-		req.target() == "/robots.txt")
+	// std::regex_search only takes strings
+	std::string target{req.target()};
+	for(auto& [re, fn] : routes)
 	{
-		return handle_file(doc_root, mtm, std::move(req), std::move(send));
-	}
-	else if(req.target().ends_with(".html") || req.target().back() == '/')
-	{
-		if(req.target() == "/post.html")
+		if(std::regex_search(target, re))
 		{
-			if(req.method() != http::verb::post)
-			{
-				// POST requests only please!
-				return send(bad_request(req, "Unknown HTTP-method"));
-			}
-
-			return handle_post(doc_root, mtm, std::move(req), std::move(send));
+			return fn(
+				doc_root,
+				mtm,
+				std::forward<decltype(req)>(req),
+				std::forward<decltype(send)>(send));
 		}
-		else
-		{
-			if(req.method() != http::verb::get)
-			{
-				// GET requests only please!
-				return send(bad_request(req, "Unknown HTTP-method"));
-			}
-
-			return handle_get_template(doc_root, mtm, std::move(req), std::move(send));
-		}
-
 	}
-	else if(std::count(req.target().begin(), req.target().end(), '/') == 1)
-	{
-		// If there's only one slash we deem it a URL token.
-		if(req.method() != http::verb::get)
-		{
-			return send(bad_request(req, "Unknown HTTP-method"));
-		}
 
-		return handle_get_url(doc_root, mtm, std::move(req), std::move(send));
-	}
-	else
-	{
-		return send(not_found(req, req.target()));
-	}
+	return send(not_found(req, target));
 }
 
 //------------------------------------------------------------------------------
