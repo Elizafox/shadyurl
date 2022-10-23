@@ -24,6 +24,8 @@
 #include <cstdlib>
 #include <cinttypes>
 #include <cstdint>
+#include <cerrno>
+#include <cstdio>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -44,6 +46,7 @@
 #include "session.hpp"
 #include "path.hpp"
 #include "server_state.hpp"
+#include "daemon.hpp"
 
 namespace beast = boost::beast;		// from <boost/beast.hpp>
 namespace http = beast::http;		// from <boost/beast/http.hpp>
@@ -72,6 +75,15 @@ int main(int argc, char* argv[])
 
 	mime_type::MimeTypeMap mtm{};
 	server_state::ServerState state{tbl, mtm};
+
+	if(state.get_config_daemon())
+	{
+		bool is_daemon = daemonise::daemonise(daemonise::D_NO_CLOSE_FILES);
+		if(is_daemon == false)
+		{
+			syslog(LOG_ALERT, "Could not daemonise: %s", strerror(errno));
+		}
+	}
 
 	if(!log::set_log_level(state.get_config_log_level()))
 	{

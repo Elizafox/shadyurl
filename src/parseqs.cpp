@@ -17,7 +17,7 @@ namespace parseqs
 static inline bool
 is_hex(char c)
 {
-	return std::isdigit(c) || 
+	return std::isdigit(c) ||
 		(c >= 'a' && c <= 'f') ||
 		(c >= 'A' && c <= 'F');
 }

@@ -1,4 +1,5 @@
-headers = ['generate.hpp',
+headers = ['daemon.hpp',
+           'generate.hpp',
            'log.hpp',
            'mime.hpp',
            'multipart_wrapper.hpp',

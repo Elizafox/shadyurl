@@ -1,4 +1,5 @@
-sources = ['generate.cpp',
+sources = ['daemon.cpp',
+           'generate.cpp',
            'log.cpp',
            'main.cpp',
            'mime.cpp',

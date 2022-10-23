@@ -27,7 +27,7 @@ const mime_type::MimeTypeMap& ServerState::get_mime_type_map() const
 	return mtm_;
 }
 
-const std::uint32_t ServerState::get_config_threads() const
+std::uint32_t ServerState::get_config_threads() const
 {
 	std::optional<std::uint32_t> cfg_threads = tbl_["config"]["threads"].value<std::uint32_t>();
 	if(!cfg_threads)
@@ -45,16 +45,16 @@ std::string_view ServerState::get_config_address() const
 	return *cfg_address;
 }
 
-const std::uint16_t ServerState::get_config_port() const
+std::uint16_t ServerState::get_config_port() const
 {
 	std::optional<std::uint16_t> cfg_port = tbl_["listen"]["port"].value<std::uint16_t>();
 	if(!cfg_port)
 		return 8080;
-	
+
 	return *cfg_port;
 }
 
-const std::uint16_t ServerState::get_config_port2() const
+std::uint16_t ServerState::get_config_port2() const
 {
 	std::optional<std::uint16_t> cfg_port2 = tbl_["listen"]["port2"].value<std::uint16_t>();
 	if(!cfg_port2)
@@ -88,6 +88,15 @@ std::string_view ServerState::get_config_log_level() const
 		return "info";
 
 	return *cfg_loglevel;
+}
+
+bool ServerState::get_config_daemon() const
+{
+	std::optional<bool> cfg_daemon = tbl_["config"]["daemon"].value<bool>();
+	if(!cfg_daemon)
+		return false;
+
+	return *cfg_daemon;
 }
 
 } // namespace server_state

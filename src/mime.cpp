@@ -18,7 +18,7 @@ std::string_view MimeTypeMap::find_extension(std::string extension_) const
 
 	size_t pos;
 	while((pos = extension.find(".")) != std::string::npos)
-	{	
+	{
 		extension.erase(0, pos + 1);
 		auto mime_search = mimetypes.find(extension);
 		if(mime_search != mimetypes.end())

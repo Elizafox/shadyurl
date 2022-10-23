@@ -21,13 +21,14 @@ public:
 	const toml::table& get_config_table() const;
 	const mime_type::MimeTypeMap& get_mime_type_map() const;
 
-	const std::uint32_t get_config_threads() const;
+	std::uint32_t get_config_threads() const;
 	std::string_view get_config_address() const;
-	const std::uint16_t get_config_port() const;
-	const std::uint16_t get_config_port2() const;
+	std::uint16_t get_config_port() const;
+	std::uint16_t get_config_port2() const;
 	std::string_view get_config_doc_root() const;
 	std::string_view get_config_hostname() const;
 	std::string_view get_config_log_level() const;
+	bool get_config_daemon() const;
 private:
 	toml::table tbl_;
 	mime_type::MimeTypeMap mtm_;
