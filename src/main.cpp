@@ -18,6 +18,8 @@
 #	define BOOST_BEAST_USE_STD_STRING_VIEW
 #endif // BOOST_BEAST_USE_STD_STRING_VIEW
 
+#include <syslog.h>
+#include <stdarg.h>
 #include <algorithm>
 #include <cstdlib>
 #include <cinttypes>
@@ -28,6 +30,7 @@
 #include <thread>
 #include <vector>
 
+#include <boost/algorithm/string.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/ssl.hpp>
@@ -50,6 +53,11 @@ using tcp = boost::asio::ip::tcp;	// from <boost/asio/ip/tcp.hpp>
 
 int main(int argc, char* argv[])
 {
+	// Open the logger
+	openlog("urlshorten", LOG_PID | LOG_NDELAY, LOG_DAEMON);
+
+	syslog(LOG_INFO, "Starting urlshorten");
+
 	// Load config data
 	toml::table tbl;
 	try
@@ -58,12 +66,17 @@ int main(int argc, char* argv[])
 	}
 	catch(const toml::parse_error& err)
 	{
-		std::cerr << "Parsing failed:\n" << err << "\n";
-		return 1;
+		syslog(LOG_ALERT, "Parsing of config file failed: %s", err.what());
+		return EXIT_FAILURE;
 	}
 
 	mime_type::MimeTypeMap mtm{};
 	server_state::ServerState state{tbl, mtm};
+
+	if(!log::set_log_level(state.get_config_log_level()))
+	{
+		return EXIT_FAILURE;
+	}
 
 	auto const address = net::ip::make_address(state.get_config_address());
 	auto const port = static_cast<unsigned short>(state.get_config_port());

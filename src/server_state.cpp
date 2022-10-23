@@ -36,7 +36,7 @@ const std::uint32_t ServerState::get_config_threads() const
 	return *cfg_threads;
 }
 
-const std::string_view ServerState::get_config_address() const
+std::string_view ServerState::get_config_address() const
 {
 	std::optional<std::string_view> cfg_address = tbl_["listen"]["ip"].value<std::string_view>();
 	if(!cfg_address)
@@ -63,7 +63,7 @@ const std::uint16_t ServerState::get_config_port2() const
 	return *cfg_port2;
 }
 
-const std::string_view ServerState::get_config_doc_root() const
+std::string_view ServerState::get_config_doc_root() const
 {
 	std::optional<std::string_view> cfg_docroot = tbl_["config"]["docroot"].value<std::string_view>();
 	if(!cfg_docroot)
@@ -72,13 +72,22 @@ const std::string_view ServerState::get_config_doc_root() const
 	return *cfg_docroot;
 }
 
-const std::string_view ServerState::get_config_hostname() const
+std::string_view ServerState::get_config_hostname() const
 {
 	std::optional<std::string_view> cfg_hostname = tbl_["config"]["hostname"].value<std::string_view>();
 	if(!cfg_hostname)
 		return "z6a.info";
 
 	return *cfg_hostname;
+}
+
+std::string_view ServerState::get_config_log_level() const
+{
+	std::optional<std::string_view> cfg_loglevel = tbl_["config"]["loglevel"].value<std::string_view>();
+	if(!cfg_loglevel)
+		return "info";
+
+	return *cfg_loglevel;
 }
 
 } // namespace server_state
