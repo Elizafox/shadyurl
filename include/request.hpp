@@ -216,6 +216,9 @@ handle_post(
 	// Off to the templating engine
 	inja::Environment env;
 	inja::json data;
+
+	data["hostname"] = state.get_config_hostname();
+
 	std::string url;
 
 	std::string_view content_type = req["Content-Type"];
@@ -353,6 +356,8 @@ handle_get_template(
 
 	inja::Environment env;
 	inja::json data;
+
+	data["hostname"] = state.get_config_hostname();
 
 	inja::Template temp;
 	std::string result;
