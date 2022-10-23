@@ -19,7 +19,6 @@
 #include "server_certificate.hpp"
 #include "session.hpp"
 #include "path.hpp"
-#include "toml.hpp"
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
@@ -27,6 +26,8 @@
 #include <boost/asio/spawn.hpp>
 #include <boost/asio/signal_set.hpp>
 #include <boost/config.hpp>
+
+#include <toml++/toml.h>
 
 #include <algorithm>
 #include <cstdlib>

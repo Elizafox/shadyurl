@@ -3,7 +3,6 @@
 #include "server_certificate.hpp"
 #include "mime.hpp"
 #include "path.hpp"
-#include "toml.hpp"
 
 #include <algorithm>
 #include <memory>

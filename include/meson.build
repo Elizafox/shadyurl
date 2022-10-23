@@ -6,6 +6,5 @@ headers = ['generate.hpp',
            'request.hpp',
            'server_certificate.hpp',
            'session.hpp',
-           'sqlite_helper.hpp',
-           'toml.hpp']
+           'sqlite_helper.hpp']
 install_headers(headers)

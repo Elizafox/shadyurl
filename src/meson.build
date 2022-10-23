@@ -14,4 +14,5 @@ http_server_executable = executable('http_server',
                                                     thread_dep,
                                                     sqlite_dep,
                                                     inja_dep,
-                                                    multipart_parser_c_dep])
+                                                    multipart_parser_c_dep,
+                                                    tomlplusplus_dep])
