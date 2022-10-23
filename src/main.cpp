@@ -76,15 +76,6 @@ int main(int argc, char* argv[])
 	mime_type::MimeTypeMap mtm{};
 	server_state::ServerState state{tbl, mtm};
 
-	if(state.get_config_daemon())
-	{
-		bool is_daemon = daemonise::daemonise(daemonise::D_NO_CLOSE_FILES);
-		if(is_daemon == false)
-		{
-			syslog(LOG_ALERT, "Could not daemonise: %s", strerror(errno));
-		}
-	}
-
 	if(!log::set_log_level(state.get_config_log_level()))
 	{
 		return EXIT_FAILURE;
@@ -132,6 +123,18 @@ int main(int argc, char* argv[])
 			// `io_context` and all of the sockets in it.
 			ioc.stop();
 		});
+
+	// Ready to daemonise.
+	ioc.notify_fork(net::io_context::fork_prepare);
+	if(state.get_config_daemon())
+	{
+		bool is_daemon = daemonise::daemonise(daemonise::D_NO_CLOSE_FILES);
+		if(is_daemon == false)
+		{
+			syslog(LOG_ALERT, "Could not daemonise: %s", strerror(errno));
+		}
+	}
+	ioc.notify_fork(net::io_context::fork_child);
 
 	// Run the I/O service on the requested number of threads
 	std::vector<std::thread> v;
