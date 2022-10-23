@@ -16,6 +16,10 @@ enum
 // returns 0 on success -1 on error
 bool daemonise(int flags);
 
+bool check_pid();
+bool write_pid();
+void remove_pid();
+
 } // namespace daemon
 
 #endif // DAEMON_H

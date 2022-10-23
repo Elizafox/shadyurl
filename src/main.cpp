@@ -56,6 +56,12 @@ using tcp = boost::asio::ip::tcp;	// from <boost/asio/ip/tcp.hpp>
 
 int main(int argc, char* argv[])
 {
+	if(!daemonise::check_pid())
+	{
+		std::cerr << "Process already running" << std::endl;
+		return EXIT_FAILURE;
+	}
+
 	// Open the logger
 	openlog("urlshorten", LOG_PID | LOG_NDELAY, LOG_DAEMON);
 
@@ -132,9 +138,16 @@ int main(int argc, char* argv[])
 		if(is_daemon == false)
 		{
 			syslog(LOG_ALERT, "Could not daemonise: %s", strerror(errno));
+			return EXIT_FAILURE;
 		}
 	}
 	ioc.notify_fork(net::io_context::fork_child);
+
+	if(!daemonise::write_pid())
+	{
+		syslog(LOG_ALERT, "Could not write PID file: %s", strerror(errno));
+		return EXIT_FAILURE;
+	}
 
 	// Run the I/O service on the requested number of threads
 	std::vector<std::thread> v;
@@ -148,6 +161,8 @@ int main(int argc, char* argv[])
 	ioc.run();
 
 	// (If we get here, it means we got a SIGINT or SIGTERM)
+
+	daemonise::remove_pid();
 
 	// Block until all the threads exit
 	for(auto& t : v)

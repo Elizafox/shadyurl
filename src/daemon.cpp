@@ -1,15 +1,20 @@
 // Taken from https://lloydrochester.com/post/c/unix-daemon-example/
 
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <stdio.h>
+#include <signal.h>
+#include <fstream>
+#include <string_view>
 
 #include "daemon.hpp"
 
 namespace daemonise
 {
+
+std::string_view pid_file_path{"/var/run/shadyurl.pid"};
 
 // returns true on success, false on error
 bool
@@ -95,6 +100,47 @@ daemonise(int flags)
 	}
 
 	return true;
+}
+
+// Returns true if process doesn't exist, false otherwise
+bool
+check_pid()
+{
+	std::ifstream pid_file{pid_file_path};
+	if(!pid_file)
+		return true;
+
+	int pid;
+	pid_file >> pid;
+	pid_file.close();
+
+	if(kill(static_cast<pid_t>(pid), 0))
+		// Error, we assume all good.
+		return true;
+	else
+		return false;
+}
+
+// Returns true if PID written, false otherwise
+bool
+write_pid()
+{
+	pid_t pid = getpid();
+
+	std::ofstream pid_file{pid_file_path, std::ofstream::out | std::ofstream::trunc};
+	if(!pid_file)
+		return false;
+
+	pid_file << static_cast<int>(pid);
+	pid_file.close();
+
+	return true;
+}
+
+void
+remove_pid()
+{
+	(void)unlink(pid_file_path.data());
 }
 
 } // namespace daemon
