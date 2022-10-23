@@ -7,7 +7,7 @@
 
 #include "mime.hpp"
 
-std::string_view get_mime_type(std::string_view, std::shared_ptr<mime_type::MimeTypeMap const> const&);
+std::string_view get_mime_type(std::string_view, const mime_type::MimeTypeMap&);
 std::string path_cat(std::string_view, std::string_view);
 
 #endif // PATH_H

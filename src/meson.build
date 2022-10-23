@@ -1,11 +1,13 @@
 sources = ['generate.cpp',
+           'log.cpp',
            'main.cpp',
            'mime.cpp',
            'multipart_wrapper.cpp',
            'parseqs.cpp',
            'path.cpp',
-           'session.cpp',
-           'server_certificate.cpp']
+           'server_certificate.cpp',
+           'server_state.cpp',
+           'session.cpp']
 http_server_executable = executable('http_server',
                                     sources,
                                     include_directories : inc,

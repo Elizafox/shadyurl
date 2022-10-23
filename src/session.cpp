@@ -13,22 +13,10 @@
 //
 //------------------------------------------------------------------------------
 
+#ifndef BOOST_BEAST_USE_STD_STRING_VIEW
+#	define BOOST_BEAST_USE_STD_STRING_VIEW
+#endif // BOOST_BEAST_USE_STD_STRING_VIEW
 
-#include "server_certificate.hpp"
-#include "session.hpp"
-#include "path.hpp"
-
-#include <boost/beast/core.hpp>
-#include <boost/beast/http.hpp>
-#include <boost/beast/ssl.hpp>
-#include <boost/beast/version.hpp>
-#include <boost/asio/bind_executor.hpp>
-#include <boost/asio/dispatch.hpp>
-#include <boost/asio/signal_set.hpp>
-#include <boost/asio/steady_timer.hpp>
-#include <boost/asio/strand.hpp>
-#include <boost/make_unique.hpp>
-#include <boost/optional.hpp>
 #include <algorithm>
 #include <cstdlib>
 #include <functional>
@@ -37,6 +25,21 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/ssl.hpp>
+#include <boost/beast/version.hpp>
+#include <boost/asio/bind_executor.hpp>
+#include <boost/asio/dispatch.hpp>
+#include <boost/asio/steady_timer.hpp>
+#include <boost/asio/strand.hpp>
+
+#include "log.hpp"
+#include "server_certificate.hpp"
+#include "session.hpp"
+#include "path.hpp"
+
 
 namespace beast = boost::beast;		// from <boost/beast.hpp>
 namespace http = beast::http;		// from <boost/beast/http.hpp>
@@ -47,37 +50,6 @@ using tcp = boost::asio::ip::tcp;	// from <boost/asio/ip/tcp.hpp>
 
 namespace session
 {
-
-//------------------------------------------------------------------------------
-
-// Report a failure
-void
-fail(beast::error_code ec, char const* what)
-{
-	// ssl::error::stream_truncated, also known as an SSL "short read",
-	// indicates the peer closed the connection without performing the
-	// required closing handshake (for example, Google does this to
-	// improve performance). Generally this can be a security issue,
-	// but if your communication protocol is self-terminated (as
-	// it is with both HTTP) then you may simply ignore the lack of
-	// close_notify.
-	//
-	// https://github.com/boostorg/beast/issues/38
-	//
-	// https://security.stackexchange.com/questions/91435/how-to-handle-a-malicious-ssl-tls-shutdown
-	//
-	// When a short read would cut off the end of an HTTP message,
-	// Beast returns the error beast::http::error::partial_message.
-	// Therefore, if we see a short read here, it has occurred
-	// after the message has been completed, so it is safe to ignore it.
-
-	if(ec == net::ssl::error::stream_truncated)
-		return;
-
-	std::cerr << what << ": " << ec.message() << "\n";
-}
-
-//------------------------------------------------------------------------------
 
 // Start the session
 void plain_http_session::run()
@@ -153,7 +125,7 @@ void ssl_http_session::do_eof()
 void ssl_http_session::on_handshake(beast::error_code ec, std::size_t bytes_used)
 {
 	if(ec)
-		return fail(ec, "handshake");
+		return log::fail(ec, "handshake");
 
 	// Consume the portion of the buffer used by the handshake
 	buffer_.consume(bytes_used);
@@ -164,7 +136,7 @@ void ssl_http_session::on_handshake(beast::error_code ec, std::size_t bytes_used
 void ssl_http_session::on_shutdown(beast::error_code ec)
 {
 	if(ec)
-		return fail(ec, "shutdown");
+		return log::fail(ec, "shutdown");
 
 	// At this point the connection is closed gracefully
 }
@@ -204,7 +176,7 @@ void
 detect_session::on_detect(beast::error_code ec, bool result)
 {
 	if(ec)
-		return fail(ec, "detect");
+		return log::fail(ec, "detect");
 
 	if(result)
 	{
@@ -213,8 +185,7 @@ detect_session::on_detect(beast::error_code ec, bool result)
 			std::move(stream_),
 			ctx_,
 			std::move(buffer_),
-			doc_root_,
-			mtm_)->run();
+			state_)->run();
 		return;
 	}
 
@@ -222,8 +193,7 @@ detect_session::on_detect(beast::error_code ec, bool result)
 	std::make_shared<plain_http_session>(
 		std::move(stream_),
 		std::move(buffer_),
-		doc_root_,
-		mtm_)->run();
+		state_)->run();
 }
 
 // Accepts incoming connections and launches the sessions
@@ -231,13 +201,11 @@ listener::listener(
 	net::io_context& ioc,
 	ssl::context& ctx,
 	tcp::endpoint endpoint,
-	std::shared_ptr<std::string const> const& doc_root,
-	std::shared_ptr<mime_type::MimeTypeMap const> const& mtm)
+	const server_state::ServerState& state)
 	: ioc_(ioc)
 	, ctx_(ctx)
 	, acceptor_(net::make_strand(ioc))
-	, doc_root_(doc_root)
-	, mtm_(mtm)
+	, state_(state)
 {
 	beast::error_code ec;
 
@@ -245,7 +213,7 @@ listener::listener(
 	acceptor_.open(endpoint.protocol(), ec);
 	if(ec)
 	{
-		fail(ec, "open");
+		log::fail(ec, "open");
 		return;
 	}
 
@@ -253,7 +221,7 @@ listener::listener(
 	acceptor_.set_option(net::socket_base::reuse_address(true), ec);
 	if(ec)
 	{
-		fail(ec, "set_option");
+		log::fail(ec, "set_option");
 		return;
 	}
 
@@ -261,7 +229,7 @@ listener::listener(
 	acceptor_.bind(endpoint, ec);
 	if(ec)
 	{
-		fail(ec, "bind");
+		log::fail(ec, "bind");
 		return;
 	}
 
@@ -270,7 +238,7 @@ listener::listener(
 		net::socket_base::max_listen_connections, ec);
 	if(ec)
 	{
-		fail(ec, "listen");
+		log::fail(ec, "listen");
 		return;
 	}
 }
@@ -298,7 +266,7 @@ listener::on_accept(beast::error_code ec, tcp::socket socket)
 {
 	if(ec)
 	{
-		fail(ec, "accept");
+		log::fail(ec, "accept");
 	}
 	else
 	{
@@ -306,8 +274,7 @@ listener::on_accept(beast::error_code ec, tcp::socket socket)
 		std::make_shared<detect_session>(
 			std::move(socket),
 			ctx_,
-			doc_root_,
-			mtm_)->run();
+			state_)->run();
 	}
 
 	// Accept another connection

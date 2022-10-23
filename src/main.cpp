@@ -14,20 +14,9 @@
 //------------------------------------------------------------------------------
 
 
-#define BOOST_BEAST_USE_STD_STRING_VIEW
-
-#include "server_certificate.hpp"
-#include "session.hpp"
-#include "path.hpp"
-
-#include <boost/beast/core.hpp>
-#include <boost/beast/http.hpp>
-#include <boost/beast/ssl.hpp>
-#include <boost/asio/spawn.hpp>
-#include <boost/asio/signal_set.hpp>
-#include <boost/config.hpp>
-
-#include <toml++/toml.h>
+#ifndef BOOST_BEAST_USE_STD_STRING_VIEW
+#	define BOOST_BEAST_USE_STD_STRING_VIEW
+#endif // BOOST_BEAST_USE_STD_STRING_VIEW
 
 #include <algorithm>
 #include <cstdlib>
@@ -38,6 +27,20 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/ssl.hpp>
+#include <boost/asio/spawn.hpp>
+#include <boost/asio/signal_set.hpp>
+#include <boost/config.hpp>
+
+#include <toml++/toml.h>
+
+#include "server_certificate.hpp"
+#include "session.hpp"
+#include "path.hpp"
+#include "server_state.hpp"
 
 namespace beast = boost::beast;		// from <boost/beast.hpp>
 namespace http = beast::http;		// from <boost/beast/http.hpp>
@@ -53,41 +56,20 @@ int main(int argc, char* argv[])
 	{
 		tbl = toml::parse_file("config.toml");
 	}
-	catch (const toml::parse_error& err)
+	catch(const toml::parse_error& err)
 	{
 		std::cerr << "Parsing failed:\n" << err << "\n";
 		return 1;
 	}
 
-	std::optional<std::uint32_t> cfg_threads = tbl["config"]["threads"].value<std::uint32_t>();
+	mime_type::MimeTypeMap mtm{};
+	server_state::ServerState state{tbl, mtm};
 
-	std::optional<std::string_view> cfg_address = tbl["listen"]["ip"].value<std::string_view>();
-	if(!cfg_address)
-		*cfg_address = "0.0.0.0";
-
-	std::optional<std::uint16_t> cfg_port = tbl["listen"]["port"].value<std::uint16_t>();
-	if(!cfg_port)
-		*cfg_port = 8480;
-
-	std::optional<std::uint16_t> cfg_port2 = tbl["listen"]["port2"].value<std::uint16_t>();
-
-	std::optional<std::string_view> cfg_docroot = tbl["config"]["docroot"].value<std::string_view>();
-	if(!cfg_docroot)
-		*cfg_docroot = ".";
-
-	if(!cfg_threads)
-		*cfg_threads = 1;
-
-	// Load MIME types
-	auto const mtm = std::make_shared<mime_type::MimeTypeMap const>(mime_type::MimeTypeMap{});;
-
-	auto const address = net::ip::make_address(*cfg_address);
-	auto const port = static_cast<unsigned short>(*cfg_port);
-	auto const doc_root = std::make_shared<std::string>(*cfg_docroot);
-	auto const threads = std::max<int>(1, *cfg_threads);
+	auto const address = net::ip::make_address(state.get_config_address());
+	auto const port = static_cast<unsigned short>(state.get_config_port());
 
 	// The io_context is required for all I/O
-	net::io_context ioc{threads};
+	net::io_context ioc{static_cast<int>(state.get_config_threads())};
 
 	// The SSL context is required, and holds certificates
 	ssl::context ctx{ssl::context::tlsv12};
@@ -100,18 +82,16 @@ int main(int argc, char* argv[])
 		ioc,
 		ctx,
 		tcp::endpoint{address, port},
-		doc_root,
-		mtm)->run();
+		state)->run();
 
-	if(cfg_port2)
+	if(state.get_config_port2())
 	{
-		auto const port2 = static_cast<unsigned short>(*cfg_port2);
+		auto const port2 = static_cast<unsigned short>(state.get_config_port2());
 		std::make_shared<session::listener>(
 			ioc,
 			ctx,
 			tcp::endpoint{address, port2},
-			doc_root,
-			mtm)->run();
+			state)->run();
 	}
 
 	// Capture SIGINT and SIGTERM to perform a clean shutdown
@@ -127,8 +107,8 @@ int main(int argc, char* argv[])
 
 	// Run the I/O service on the requested number of threads
 	std::vector<std::thread> v;
-	v.reserve(threads - 1);
-	for(auto i = threads - 1; i > 0; --i)
+	v.reserve(state.get_config_threads() - 1);
+	for(auto i = state.get_config_threads() - 1; i > 0; --i)
 		v.emplace_back(
 		[&ioc]
 		{

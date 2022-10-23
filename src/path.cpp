@@ -12,7 +12,7 @@
 
 // Return a reasonable mime type based on the extension of a file.
 std::string_view
-get_mime_type(std::string_view path, std::shared_ptr<mime_type::MimeTypeMap const> const& mtm)
+get_mime_type(std::string_view path, const mime_type::MimeTypeMap& mtm)
 {
 	auto const filename = [&path]
 	{
@@ -22,7 +22,7 @@ get_mime_type(std::string_view path, std::shared_ptr<mime_type::MimeTypeMap cons
 		return path.substr(pos);
 	}();
 
-	return mtm->find_filename(filename.data());
+	return mtm.find_filename(filename.data());
 }
 
 // Append an HTTP rel-path to a local filesystem path.

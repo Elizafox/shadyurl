@@ -5,12 +5,6 @@
 #	define BOOST_BEAST_USE_STD_STRING_VIEW
 #endif
 
-#include <boost/beast/core.hpp>
-#include <boost/beast/http.hpp>
-#include <boost/beast/version.hpp>
-
-#include <inja/inja.hpp>
-
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -24,20 +18,26 @@
 #include <regex>
 #include <utility>
 
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/version.hpp>
+
+#include <inja/inja.hpp>
+
 #include "generate.hpp"
 #include "mime.hpp"
 #include "parseqs.hpp"
 #include "path.hpp"
 #include "sqlite_helper.hpp"
 #include "multipart_wrapper.hpp"
+#include "server_state.hpp"
+
 
 namespace request
 {
 
 namespace beast = boost::beast;		// from <boost/beast.hpp>
 namespace http = beast::http;		// from <boost/beast/http.hpp>
-
-void fail(beast::error_code, char const*);
 
 // Various response types
 
@@ -91,11 +91,11 @@ auto ok_head_file(
 	const auto& req,
 	std::string_view path,
 	http::file_body::value_type&& body,
-	std::shared_ptr<mime_type::MimeTypeMap const> const& mtm)
+	const server_state::ServerState& state)
 {
 	http::response<http::empty_body> res{http::status::ok, req.version()};
 	res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-	res.set(http::field::content_type, get_mime_type(path, mtm));
+	res.set(http::field::content_type, get_mime_type(path, state.get_mime_type_map()));
 	res.content_length(body.size());
 	res.keep_alive(req.keep_alive());
 	return res;
@@ -105,7 +105,7 @@ auto ok_get_file(
 	const auto& req,
 	std::string_view path,
 	http::file_body::value_type&& body,
-	std::shared_ptr<mime_type::MimeTypeMap const> const& mtm)
+	const server_state::ServerState& state)
 {
 	// Cache the size since we need it after the move
 	auto const size = body.size();
@@ -115,7 +115,7 @@ auto ok_get_file(
 		std::make_tuple(std::move(body)),
 		std::make_tuple(http::status::ok, req.version())};
 	res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-	res.set(http::field::content_type, get_mime_type(path, mtm));
+	res.set(http::field::content_type, get_mime_type(path, state.get_mime_type_map()));
 	res.content_length(size);
 	res.keep_alive(req.keep_alive());
 	return res;
@@ -151,13 +151,12 @@ auto bad_request_string(
 template<class Body, class Allocator, class Send>
 void
 handle_file(
-	std::string_view doc_root,
-	std::shared_ptr<mime_type::MimeTypeMap const> const& mtm,
+	const server_state::ServerState& state,
 	http::request<Body, http::basic_fields<Allocator>>&& req,
 	Send&& send)
 {
 	// Build the path to the requested file
-	std::string path = path_cat(doc_root, req.target());
+	std::string path = path_cat(state.get_config_doc_root(), req.target());
 
 	// Make sure we can handle the method
 	if(req.method() != http::verb::get &&
@@ -182,11 +181,11 @@ handle_file(
 	// Respond to HEAD request
 	if(req.method() == http::verb::head)
 	{
-		return send(ok_head_file(req, path, std::move(body), mtm));
+		return send(ok_head_file(req, path, std::move(body), state));
 	}
 	else if(req.method() == http::verb::get)
 	{
-		return send(ok_get_file(req, path, std::move(body), mtm));
+		return send(ok_get_file(req, path, std::move(body), state));
 	}
 	else
 	{
@@ -198,8 +197,7 @@ handle_file(
 template<class Body, class Allocator, class Send>
 void
 handle_post(
-	std::string_view doc_root,
-	std::shared_ptr<mime_type::MimeTypeMap const> const& mtm,
+	const server_state::ServerState& state,
 	http::request<Body, http::basic_fields<Allocator>>&& req,
 	Send&& send)
 {
@@ -209,7 +207,7 @@ handle_post(
 		return send(bad_request(req, "Unknown HTTP-method"));
 	}
 
-	std::string path = path_cat(doc_root, req.target());
+	std::string path = path_cat(state.get_config_doc_root(), req.target());
 
 	if(req.target().back() == '/')
 		path.append("index.html");
@@ -336,8 +334,7 @@ handle_post(
 template<class Body, class Allocator, class Send>
 void
 handle_get_template(
-	std::string_view doc_root,
-	std::shared_ptr<mime_type::MimeTypeMap const> const& mtm,
+	const server_state::ServerState& state,
 	http::request<Body, http::basic_fields<Allocator>>&& req,
 	Send&& send)
 {
@@ -349,7 +346,7 @@ handle_get_template(
 
 	// These are templated pages
 	// Off to the templating engine
-	std::string path = path_cat(doc_root, req.target());
+	std::string path = path_cat(state.get_config_doc_root(), req.target());
 
 	if(req.target().back() == '/')
 		path.append("index.html");
@@ -376,8 +373,7 @@ handle_get_template(
 template<class Body, class Allocator, class Send>
 void
 handle_get_url(
-	std::string_view doc_root,
-	std::shared_ptr<mime_type::MimeTypeMap const> const& mtm,
+	const server_state::ServerState& state,
 	http::request<Body, http::basic_fields<Allocator>>&& req,
 	Send&& send)
 {
@@ -433,15 +429,13 @@ handle_get_url(
 template<class Body, class Allocator, class Send>
 void
 handle_request(
-	std::string_view doc_root,
-	std::shared_ptr<mime_type::MimeTypeMap const> const& mtm,
+	const server_state::ServerState& state,
 	http::request<Body, http::basic_fields<Allocator>>&& req,
 	Send&& send)
 {
 	using fn_ptr_type =
 		void(*)(
-			std::string_view,
-			std::shared_ptr<mime_type::MimeTypeMap const> const&,
+			const server_state::ServerState& state,
 			http::request<Body, http::basic_fields<Allocator>>&&,
 			Send&&);
 	const std::vector<std::tuple<std::regex, fn_ptr_type>> routes{
@@ -467,8 +461,7 @@ handle_request(
 		if(std::regex_search(target, re))
 		{
 			return fn(
-				doc_root,
-				mtm,
+				state,
 				std::forward<decltype(req)>(req),
 				std::forward<decltype(send)>(send));
 		}
