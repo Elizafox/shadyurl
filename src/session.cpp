@@ -36,7 +36,6 @@
 #include <boost/asio/strand.hpp>
 
 #include "log.hpp"
-#include "server_certificate.hpp"
 #include "session.hpp"
 #include "path.hpp"
 

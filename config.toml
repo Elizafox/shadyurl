@@ -7,4 +7,4 @@ port2 = 8043
 docroot = "/Users/elizabeth/shadyurl/server"
 threads = 2
 loglevel = "debug"
-daemon = false
+daemon = true

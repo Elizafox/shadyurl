@@ -29,6 +29,9 @@ public:
 	std::string_view get_config_hostname() const;
 	std::string_view get_config_log_level() const;
 	bool get_config_daemon() const;
+	std::string_view get_config_cert_file() const;
+	std::string_view get_config_key_file() const;
+	std::string_view get_config_dh_file() const;
 private:
 	toml::table tbl_;
 	mime_type::MimeTypeMap mtm_;

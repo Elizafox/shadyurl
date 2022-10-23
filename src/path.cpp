@@ -1,13 +1,10 @@
-#define BOOST_BEAST_USE_STD_STRING_VIEW
-
-#include "server_certificate.hpp"
-#include "mime.hpp"
-#include "path.hpp"
-
 #include <algorithm>
 #include <memory>
 #include <string_view>
 #include <string>
+
+#include "mime.hpp"
+#include "path.hpp"
 
 
 // Return a reasonable mime type based on the extension of a file.

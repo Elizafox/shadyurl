@@ -42,7 +42,7 @@
 
 #include <toml++/toml.h>
 
-#include "server_certificate.hpp"
+#include "certificate.hpp"
 #include "session.hpp"
 #include "path.hpp"
 #include "server_state.hpp"
@@ -100,7 +100,10 @@ int main(int argc, char* argv[])
 	ssl::context ctx{ssl::context::tlsv12};
 
 	// This holds the self-signed certificate used by the server
-	load_server_certificate(ctx);
+	if(!certificate::load_server_certificate(state, ctx))
+	{
+		return EXIT_FAILURE;
+	}
 
 	// Create and launch a listening port
 	std::make_shared<session::listener>(

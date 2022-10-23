@@ -99,4 +99,31 @@ bool ServerState::get_config_daemon() const
 	return *cfg_daemon;
 }
 
+std::string_view ServerState::get_config_cert_file() const
+{
+	std::optional<std::string_view> cfg_certfile = tbl_["config"]["certfile"].value<std::string_view>();
+	if(!cfg_certfile)
+		return "cert.pem";
+
+	return *cfg_certfile;
+}
+
+std::string_view ServerState::get_config_key_file() const
+{
+	std::optional<std::string_view> cfg_keyfile = tbl_["config"]["keyfile"].value<std::string_view>();
+	if(!cfg_keyfile)
+		return "key.pem";
+
+	return *cfg_keyfile;
+}
+
+std::string_view ServerState::get_config_dh_file() const
+{
+	std::optional<std::string_view> cfg_dhfile = tbl_["config"]["dhfile"].value<std::string_view>();
+	if(!cfg_dhfile)
+		return "dh.pem";
+
+	return *cfg_dhfile;
+}
+
 } // namespace server_state
