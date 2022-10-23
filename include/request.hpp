@@ -179,7 +179,7 @@ handle_file(
 	// Handle an unknown error
 	if(ec)
 	{
-		syslog(LOG_ERR, "Unknown error fetching file %s: %s", req.target().c_str(), ec.message().c_str());
+		syslog(LOG_ERR, "Unknown error fetching file %s: %s", req.target().data(), ec.message().c_str());
 		return send(server_error(req, ec.message()));
 	}
 
