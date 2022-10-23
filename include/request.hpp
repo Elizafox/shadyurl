@@ -5,6 +5,8 @@
 #	define BOOST_BEAST_USE_STD_STRING_VIEW
 #endif
 
+#include <syslog.h>
+#include <stdarg.h>
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -176,7 +178,10 @@ handle_file(
 
 	// Handle an unknown error
 	if(ec)
+	{
+		syslog(LOG_ERR, "Unknown error fetching file %s: %s", req.target().c_str(), ec.message().c_str());
 		return send(server_error(req, ec.message()));
+	}
 
 	// Respond to HEAD request
 	if(req.method() == http::verb::head)
@@ -303,7 +308,9 @@ handle_post(
 		nullptr);
 	if(rc != SQLITE_OK)
 	{
-		return send(server_error(req, "SQL error:" + std::string(sqlite3_errmsg(db.get()))));
+		std::string error{sqlite3_errmsg(db.get())};
+		syslog(LOG_ERR, "Error with sqlite3: %s", error.c_str());
+		return send(server_error(req, "SQL error: " + error));
 	}
 
 	sqlite_helper::scope_exit cleanup{[&] { sqlite3_finalize(res); }};
@@ -314,7 +321,9 @@ handle_post(
 	int step = sqlite3_step(res);
 	if(step != SQLITE_DONE)
 	{
-		return send(server_error(req, "SQL error:" + std::string(sqlite3_errmsg(db.get()))));
+		std::string error{sqlite3_errmsg(db.get())};
+		syslog(LOG_ERR, "Error with sqlite3: %s", error.c_str());
+		return send(server_error(req, "SQL error: " + error));
 	}
 
 	inja::Template temp;
@@ -399,7 +408,9 @@ handle_get_url(
 		nullptr);
 	if(rc != SQLITE_OK)
 	{
-		return send(server_error(req, "SQL error:" + std::string(sqlite3_errmsg(db.get()))));
+		std::string error{sqlite3_errmsg(db.get())};
+		syslog(LOG_ERR, "Error with sqlite3: %s", error.c_str());
+		return send(server_error(req, "SQL error: " + error));
 	}
 
 	sqlite_helper::scope_exit cleanup{[&] { sqlite3_finalize(res); }};
@@ -408,7 +419,9 @@ handle_get_url(
 	rc = sqlite3_bind_text(res, 1, token.c_str(), -1, SQLITE_STATIC);
 	if(rc != SQLITE_OK)
 	{
-		return send(server_error(req, "SQL error:" + std::string(sqlite3_errmsg(db.get()))));
+		std::string error{sqlite3_errmsg(db.get())};
+		syslog(LOG_ERR, "Error with sqlite3: %s", error.c_str());
+		return send(server_error(req, "SQL error:" + error));
 	}
 
 	std::string url;
