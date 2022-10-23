@@ -156,6 +156,13 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
+	// Set rlimit
+	if(!daemonise::set_rlimit())
+	{
+		syslog(LOG_ALERT, "Could not set rlimit: %s", strerror(errno));
+		return EXIT_FAILURE;
+	}
+
 	// Run the I/O service on the requested number of threads
 	std::vector<std::thread> v;
 	v.reserve(state.get_config_threads() - 1);

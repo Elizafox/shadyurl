@@ -23,6 +23,7 @@ bool write_pid();
 void remove_pid();
 
 bool drop_privs(std::string_view, std::string_view);
+bool set_rlimit();
 
 } // namespace daemon
 

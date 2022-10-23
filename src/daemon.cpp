@@ -218,4 +218,36 @@ drop_privs(std::string_view user, std::string_view group)
 	return true;
 }
 
+
+bool
+set_rlimit()
+{
+	struct rlimit rlim;
+
+	// Maybe configurable in the future? For now good enough.
+	const long long int rlim_core = RLIM_INFINITY;
+	const long long int rlim_nofile = RLIM_INFINITY;
+
+	if(rlim_core >= 0)
+	{
+		rlim.rlim_cur = rlim.rlim_max = (rlim_core >= RLIM_INFINITY) ? RLIM_INFINITY : rlim_core;
+		if(setrlimit(RLIMIT_CORE, &rlim) != 0)
+		{
+			syslog(LOG_ALERT, "Couldn't set max core file size: %s", strerror(errno));
+			return false;
+		}
+	}
+	if(rlim_nofile >= 0)
+	{
+		rlim.rlim_cur = rlim.rlim_max = (rlim_nofile >= RLIM_INFINITY) ? RLIM_INFINITY : rlim_nofile;
+		if(setrlimit(RLIMIT_NOFILE, &rlim) != 0)
+		{
+			syslog(LOG_ALERT, "Couldn't set max file descriptors: %s", strerror(errno));
+			return false;
+		}
+	}
+
+	return 0;
+}
+
 } // namespace daemon
