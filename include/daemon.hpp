@@ -1,6 +1,8 @@
 #ifndef DAEMON_H
 #define DAEMON_H
 
+#include <string_view>
+
 namespace daemonise
 {
 
@@ -19,6 +21,8 @@ bool daemonise(int flags);
 bool check_pid();
 bool write_pid();
 void remove_pid();
+
+bool drop_privs(std::string_view, std::string_view);
 
 } // namespace daemon
 

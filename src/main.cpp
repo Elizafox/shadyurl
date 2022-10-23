@@ -149,6 +149,13 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
+	// Drop privileges
+	if(!daemonise::drop_privs(state.get_config_user(), state.get_config_group()))
+	{
+		syslog(LOG_ALERT, "Could not drop privileges: %s", strerror(errno));
+		return EXIT_FAILURE;
+	}
+
 	// Run the I/O service on the requested number of threads
 	std::vector<std::thread> v;
 	v.reserve(state.get_config_threads() - 1);

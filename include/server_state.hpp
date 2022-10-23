@@ -32,6 +32,8 @@ public:
 	std::string_view get_config_cert_file() const;
 	std::string_view get_config_key_file() const;
 	std::string_view get_config_dh_file() const;
+	std::string_view get_config_user() const;
+	std::string_view get_config_group() const;
 private:
 	toml::table tbl_;
 	mime_type::MimeTypeMap mtm_;

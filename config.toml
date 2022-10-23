@@ -8,3 +8,4 @@ docroot = "/Users/elizabeth/shadyurl/server"
 threads = 2
 loglevel = "debug"
 daemon = true
+user = "elizabeth"

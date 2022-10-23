@@ -126,4 +126,22 @@ std::string_view ServerState::get_config_dh_file() const
 	return *cfg_dhfile;
 }
 
+std::string_view ServerState::get_config_user() const
+{
+	std::optional<std::string_view> cfg_user = tbl_["config"]["user"].value<std::string_view>();
+	if(!cfg_user)
+		return "";
+
+	return *cfg_user;
+}
+
+std::string_view ServerState::get_config_group() const
+{
+	std::optional<std::string_view> cfg_group = tbl_["config"]["group"].value<std::string_view>();
+	if(!cfg_group)
+		return "";
+
+	return *cfg_group;
+}
+
 } // namespace server_state

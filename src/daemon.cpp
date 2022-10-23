@@ -1,11 +1,15 @@
-// Taken from https://lloydrochester.com/post/c/unix-daemon-example/
-
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <syslog.h>
+#include <stdarg.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <errno.h>
+#include <stdio.h>
+#include <pwd.h>
+#include <grp.h>
 #include <fstream>
 #include <string_view>
 
@@ -14,8 +18,9 @@
 namespace daemonise
 {
 
-std::string_view pid_file_path{"/var/run/shadyurl.pid"};
+static std::string_view pid_file_path{"/var/run/shadyurl.pid"};
 
+// Taken from https://lloydrochester.com/post/c/unix-daemon-example/
 // returns true on success, false on error
 bool
 daemonise(int flags)
@@ -141,6 +146,76 @@ void
 remove_pid()
 {
 	(void)unlink(pid_file_path.data());
+}
+
+bool
+drop_privs(std::string_view user, std::string_view group)
+{
+	gid_t gid = static_cast<gid_t>(-1);
+	uid_t uid = static_cast<uid_t>(-1);
+
+	if(!user.empty())
+	{
+		struct passwd* pwd;
+		if((pwd = getpwnam(user.data())) == nullptr)
+		{
+			syslog(LOG_ALERT, "Could not find user: %s", user.data());
+			return false;
+		}
+
+		uid = pwd->pw_uid;
+
+		if(group.empty())
+		{
+			gid = pwd->pw_gid;
+		}
+	}
+
+	if(!group.empty())
+	{
+		struct group* grp;
+
+		if((grp = getgrnam(group.data())) == nullptr)
+		{
+			syslog(LOG_ALERT, "Could not find group %s: %s", group.data(), strerror(errno));
+			return false;
+		}
+
+		gid = grp->gr_gid;
+	}
+
+	if(gid != static_cast<gid_t>(-1))
+	{
+		if(setgid(gid) == -1)
+		{
+			syslog(LOG_ALERT, "Could not setgid(%d): %s", gid, strerror(errno));
+			return false;
+		}
+
+		// Pare down ancillary groups
+		if(setgroups(0, NULL) == -1)
+		{
+			syslog(LOG_ALERT, "Could not setgroups(): %s", strerror(errno));
+			return false;
+		}
+
+		if(!user.empty() && initgroups(user.data(), gid) == -1)
+		{
+			syslog(LOG_ALERT, "Could not initgroups(%s, %d): %s", user.data(), gid, strerror(errno));
+			return false;
+		}
+	}
+
+	if(uid != static_cast<uid_t>(-1))
+	{
+		if(setuid(uid) == -1)
+		{
+			syslog(LOG_ALERT, "Could not setuid(%d): %s", uid, strerror(errno));
+			return false;
+		}
+	}
+
+	return true;
 }
 
 } // namespace daemon
