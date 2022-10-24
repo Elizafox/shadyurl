@@ -7,6 +7,9 @@
 #include "path.hpp"
 
 
+namespace pathutil
+{
+
 // Return a reasonable mime type based on the extension of a file.
 std::string_view
 get_mime_type(std::string_view path, const mime_type::MimeTypeMap& mtm)
@@ -46,3 +49,5 @@ path_cat(std::string_view base, std::string_view path)
 #endif
 	return result;
 }
+
+} // namespace pathutil

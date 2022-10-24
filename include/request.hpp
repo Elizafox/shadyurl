@@ -94,7 +94,7 @@ auto ok_head_file(
 {
 	http::response<http::empty_body> res{http::status::ok, req.version()};
 	res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-	res.set(http::field::content_type, get_mime_type(path, state.get_mime_type_map()));
+	res.set(http::field::content_type, pathutil::get_mime_type(path, state.get_mime_type_map()));
 	res.content_length(body.size());
 	res.keep_alive(req.keep_alive());
 	return res;
@@ -114,7 +114,7 @@ auto ok_get_file(
 		std::make_tuple(std::move(body)),
 		std::make_tuple(http::status::ok, req.version())};
 	res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-	res.set(http::field::content_type, get_mime_type(path, state.get_mime_type_map()));
+	res.set(http::field::content_type, pathutil::get_mime_type(path, state.get_mime_type_map()));
 	res.content_length(size);
 	res.keep_alive(req.keep_alive());
 	return res;
@@ -155,7 +155,7 @@ handle_file(
 	Send&& send)
 {
 	// Build the path to the requested file
-	std::string path = path_cat(state.get_config_doc_root(), req.target());
+	std::string path = pathutil::path_cat(state.get_config_doc_root(), req.target());
 
 	// Make sure we can handle the method
 	if(req.method() != http::verb::get &&
@@ -209,7 +209,7 @@ handle_post(
 		return send(bad_request(req, "Unknown HTTP-method"));
 	}
 
-	std::string path = path_cat(state.get_config_doc_root(), req.target());
+	std::string path = pathutil::path_cat(state.get_config_doc_root(), req.target());
 
 	if(req.target().back() == '/')
 		path.append("index.html");
@@ -355,7 +355,7 @@ handle_get_template(
 
 	// These are templated pages
 	// Off to the templating engine
-	std::string path = path_cat(state.get_config_doc_root(), req.target());
+	std::string path = pathutil::path_cat(state.get_config_doc_root(), req.target());
 
 	if(req.target().back() == '/')
 		path.append("index.html");
