@@ -124,7 +124,7 @@ void ssl_http_session::do_eof()
 void ssl_http_session::on_handshake(beast::error_code ec, std::size_t bytes_used)
 {
 	if(ec)
-		return log::fail(ec, "handshake");
+		return logging::fail(ec, "handshake");
 
 	// Consume the portion of the buffer used by the handshake
 	buffer_.consume(bytes_used);
@@ -135,7 +135,7 @@ void ssl_http_session::on_handshake(beast::error_code ec, std::size_t bytes_used
 void ssl_http_session::on_shutdown(beast::error_code ec)
 {
 	if(ec)
-		return log::fail(ec, "shutdown");
+		return logging::fail(ec, "shutdown");
 
 	// At this point the connection is closed gracefully
 }
@@ -175,7 +175,7 @@ void
 detect_session::on_detect(beast::error_code ec, bool result)
 {
 	if(ec)
-		return log::fail(ec, "detect");
+		return logging::fail(ec, "detect");
 
 	if(result)
 	{
@@ -212,7 +212,7 @@ listener::listener(
 	acceptor_.open(endpoint.protocol(), ec);
 	if(ec)
 	{
-		log::fail(ec, "open");
+		logging::fail(ec, "open");
 		return;
 	}
 
@@ -220,7 +220,7 @@ listener::listener(
 	acceptor_.set_option(net::socket_base::reuse_address(true), ec);
 	if(ec)
 	{
-		log::fail(ec, "set_option");
+		logging::fail(ec, "set_option");
 		return;
 	}
 
@@ -228,7 +228,7 @@ listener::listener(
 	acceptor_.bind(endpoint, ec);
 	if(ec)
 	{
-		log::fail(ec, "bind");
+		logging::fail(ec, "bind");
 		return;
 	}
 
@@ -237,7 +237,7 @@ listener::listener(
 		net::socket_base::max_listen_connections, ec);
 	if(ec)
 	{
-		log::fail(ec, "listen");
+		logging::fail(ec, "listen");
 		return;
 	}
 }
@@ -265,7 +265,7 @@ listener::on_accept(beast::error_code ec, tcp::socket socket)
 {
 	if(ec)
 	{
-		log::fail(ec, "accept");
+		logging::fail(ec, "accept");
 	}
 	else
 	{

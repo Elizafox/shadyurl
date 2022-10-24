@@ -207,7 +207,7 @@ public:
 			return derived().do_eof();
 
 		if(ec)
-			return log::fail(ec, "read");
+			return logging::fail(ec, "read");
 
 		// Send the response
 		request::handle_request(state_, parser_->release(), queue_);
@@ -223,7 +223,7 @@ public:
 		boost::ignore_unused(bytes_transferred);
 
 		if(ec)
-			return log::fail(ec, "write");
+			return logging::fail(ec, "write");
 
 		if(close)
 		{

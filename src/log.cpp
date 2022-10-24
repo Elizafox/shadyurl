@@ -14,7 +14,7 @@
 
 #include "log.hpp"
 
-namespace  log
+namespace logging
 {
 
 namespace beast = boost::beast;		// from <boost/beast.hpp>

@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 #include <pwd.h>
 #include <grp.h>
 #include <fstream>
@@ -76,7 +77,10 @@ daemonise(int flags)
 		umask(0);			// clear file creation mode mask
 
 	if(!(flags & D_NO_CHDIR))
-		chdir("/");			// change to root directory
+	{
+		if(chdir("/") == -1)		// change to root directory
+			return false;
+	}
 
 	if(!(flags & D_NO_CLOSE_FILES))		// close all open files
 	{
@@ -112,7 +116,7 @@ daemonise(int flags)
 bool
 check_pid()
 {
-	std::ifstream pid_file{pid_file_path};
+	std::ifstream pid_file{pid_file_path.data()};
 	if(!pid_file)
 		return true;
 
@@ -133,7 +137,7 @@ write_pid()
 {
 	pid_t pid = getpid();
 
-	std::ofstream pid_file{pid_file_path, std::ofstream::out | std::ofstream::trunc};
+	std::ofstream pid_file{pid_file_path.data(), std::ofstream::out | std::ofstream::trunc};
 	if(!pid_file)
 		return false;
 
@@ -226,8 +230,8 @@ set_rlimit()
 	struct rlimit rlim;
 
 	// Maybe configurable in the future? For now good enough.
-	const long long int rlim_core = RLIM_INFINITY;
-	const long long int rlim_nofile = RLIM_INFINITY;
+	const unsigned long long int rlim_core = RLIM_INFINITY;
+	const unsigned long long int rlim_nofile = RLIM_INFINITY;
 
 	if(rlim_core >= 0)
 	{

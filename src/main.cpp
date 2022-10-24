@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 	mime_type::MimeTypeMap mtm{};
 	server_state::ServerState state{tbl, mtm};
 
-	if(!log::set_log_level(state.get_config_log_level()))
+	if(!logging::set_log_level(state.get_config_log_level()))
 	{
 		return EXIT_FAILURE;
 	}
