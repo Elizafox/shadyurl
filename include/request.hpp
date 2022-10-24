@@ -14,7 +14,7 @@
 #include <memory>
 #include <string>
 #include <thread>
-#include <vector>
+#include <array>
 #include <map>
 #include <tuple>
 #include <regex>
@@ -456,13 +456,13 @@ handle_request(
 			const server_state::ServerState& state,
 			http::request<Body, http::basic_fields<Allocator>>&&,
 			Send&&);
-	const std::vector<std::tuple<std::regex, fn_ptr_type>> routes{
+	const std::array<std::tuple<std::regex, fn_ptr_type>, 5> routes{{
 		REQ_ROUTE_DEF(R"RE(^/(assets/.*|favicon\.ico|robots\.txt)$)RE", handle_file),
 		REQ_ROUTE_DEF(R"RE(^/post\.html$)RE", handle_post),
 		REQ_ROUTE_DEF(R"RE(^/$)RE", handle_get_template),
 		REQ_ROUTE_DEF(R"RE(^/(.*\.html)?$)RE", handle_get_template),
 		REQ_ROUTE_DEF(R"RE(^/[^/]+$)RE", handle_get_url),
-	};
+	}};
 
 	// Request path must be absolute and not contain "..".
 	if(req.target().empty() ||
