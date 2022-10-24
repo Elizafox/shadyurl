@@ -9,3 +9,4 @@ threads = 2
 loglevel = "debug"
 daemon = true
 user = "elizabeth"
+dbpath = "urls.db"

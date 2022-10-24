@@ -34,6 +34,7 @@ public:
 	std::string_view get_config_dh_file() const;
 	std::string_view get_config_user() const;
 	std::string_view get_config_group() const;
+	std::string_view get_config_db_path() const;
 private:
 	toml::table tbl_;
 	mime_type::MimeTypeMap mtm_;

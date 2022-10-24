@@ -298,7 +298,7 @@ handle_post(
 	data["url"] = url;
 	data["token"] = token;
 
-	auto db = sqlite_helper::make_sqlite3_handle("urls.db");
+	auto db = sqlite_helper::make_sqlite3_handle(state.get_config_db_path().data());
 	sqlite3_stmt *res;
 	int rc = sqlite3_prepare_v2(
 		db.get(),
@@ -398,7 +398,7 @@ handle_get_url(
 	}
 
 	// We assume this is a shortened URL otherwise.
-	auto db = sqlite_helper::make_sqlite3_handle("urls.db");
+	auto db = sqlite_helper::make_sqlite3_handle(state.get_config_db_path().data());
 	sqlite3_stmt *res;
 	int rc = sqlite3_prepare_v2(
 		db.get(),

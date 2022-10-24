@@ -144,4 +144,13 @@ std::string_view ServerState::get_config_group() const
 	return *cfg_group;
 }
 
+std::string_view ServerState::get_config_db_path() const
+{
+	std::optional<std::string_view> cfg_dbpath = tbl_["config"]["dbpath"].value<std::string_view>();
+	if(!cfg_dbpath)
+		return "urls.db";
+
+	return *cfg_dbpath;
+}
+
 } // namespace server_state
