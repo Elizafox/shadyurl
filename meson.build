@@ -1,6 +1,6 @@
 project('http_server',
         'cpp',
-        default_options : ['cpp_std=c++2a', 'buildtype=minsize'])
+        default_options : ['cpp_std=c++20', 'buildtype=minsize'])
 
 inja_proj = subproject('inja')
 inja_dep = inja_proj.get_variable('inja_dep')
