@@ -19,6 +19,6 @@ http_server_deps = [boost_dep,
                     tomlplusplus_dep]
 
 http_server_executable = executable('http_server',
-                                    sources,
+                                    http_server_sources,
                                     include_directories : inc,
                                     dependencies : http_server_deps)
