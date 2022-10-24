@@ -11,4 +11,6 @@ Building
 ========
 This project uses Meson. Run `meson setup build && cd build && meson compile && meson install` to install it.
 
-This project depends on OpenSSL, Boost, pthreads, and sqlite3.
+Dependencies
+============
+This project depends on a C++20 compiler, OpenSSL, Boost, pthreads, and sqlite3.
