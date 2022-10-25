@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include <pwd.h>
 #include <grp.h>
 #include <fstream>
@@ -35,9 +36,13 @@ daemonise(int flags)
 	 */
 	switch(fork())				// become background process
 	{
-		case -1: return false;
-		case 0: break;			// child falls through
-		default: _exit(EXIT_SUCCESS);	// parent terminates
+		case -1:
+			syslog(LOG_ALERT, "Could not fork(): %s", strerror(errno));
+			return false;
+		case 0:
+			break;			// child falls through
+		default:
+			_exit(EXIT_SUCCESS);	// parent terminates
 	}
 
 	/*
@@ -49,7 +54,10 @@ daemonise(int flags)
 	 * process group.
 	 */
 	if(setsid() == -1)			// become leader of new session
+	{
+		syslog(LOG_ALERT, "Could not setsid(): %s", strerror(errno));
 		return false;
+	}
 
 	/*
 	 * We will fork again, also known as a
@@ -68,9 +76,13 @@ daemonise(int flags)
 	 */
 	switch(fork())
 	{
-		case -1: return false;
-		case 0: break;			// child breaks out of case
-		default: _exit(EXIT_SUCCESS);	// parent process will exit
+		case -1:
+			syslog(LOG_ALERT, "Could not fork(): %s", strerror(errno));
+			return false;
+		case 0:
+			break;			// child breaks out of case
+		default:
+			_exit(EXIT_SUCCESS);	// parent process will exit
 	}
 
 	if(!(flags & D_NO_UMASK0))
@@ -79,7 +91,10 @@ daemonise(int flags)
 	if(!(flags & D_NO_CHDIR))
 	{
 		if(chdir("/") == -1)		// change to root directory
+		{
+			syslog(LOG_ALERT, "Could not chdir(\"/\"): %s", strerror(errno));
 			return false;
+		}
 	}
 
 	if(!(flags & D_NO_CLOSE_FILES))		// close all open files
@@ -88,7 +103,7 @@ daemonise(int flags)
 		if(maxfd == -1)
 			maxfd = D_MAX_CLOSE;	// if we don't know then guess
 		for(fd = 0; fd < maxfd; fd++)
-			close(fd);
+			(void)close(fd);
 	}
 
 	if(!(flags & D_NO_REOPEN_STD_FDS))
@@ -98,15 +113,24 @@ daemonise(int flags)
 		 * then we'll point stdout and stderr
 		 * to /dev/null
 		 */
-		close(STDIN_FILENO);
+		(void)close(STDIN_FILENO);
 
 		fd = open("/dev/null", O_RDWR);
 		if(fd != STDIN_FILENO)
+		{
+			syslog(LOG_ALERT, "Could not open /dev/null: %s", strerror(errno));
 			return false;
+		}
 		if(dup2(STDIN_FILENO, STDOUT_FILENO) != STDOUT_FILENO)
+		{
+			syslog(LOG_ALERT, "Could not dup2(STDIN_FILENO, STDOUT_FILENO): %s", strerror(errno));
 			return false;
+		}
 		if(dup2(STDIN_FILENO, STDERR_FILENO) != STDERR_FILENO)
+		{
+			syslog(LOG_ALERT, "Could not dup2(STDIN_FILENO, STDERR_FILENO): %s", strerror(errno));
 			return false;
+		}
 	}
 
 	return true;
