@@ -5,13 +5,13 @@
 #include <sstream>
 #include <string>
 #include <string>
-#include <vector>
+#include <array>
 #include <random>
 
 namespace generate
 {
 
-static std::vector<std::string> nsfw =
+static const std::array nsfw =
 {
 	"antifa",
 	"ambien",
@@ -164,7 +164,7 @@ static std::vector<std::string> nsfw =
 	"snuff",
 };
 
-static std::vector<std::string> ext =
+static const std::array ext =
 {
 	".ini",
 	".exe",
