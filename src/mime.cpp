@@ -25,7 +25,7 @@ std::string_view MimeTypeMap::find_extension(std::string extension_) const
 			return mime_search->second;
 	}
 
-	return default_mimetype();
+	return default_mimetype_;
 }
 
 std::string_view MimeTypeMap::find_filename(std::string filename) const
@@ -33,14 +33,16 @@ std::string_view MimeTypeMap::find_filename(std::string filename) const
 	// We assume everything after the first dot is an extension
 	size_t pos = filename.find(".");
 	if(pos == std::string::npos)
-		return default_mimetype();
+		return default_mimetype_;
 
 	return find_extension(filename.substr(pos));
 }
 
-MimeTypeMap::MimeTypeMap()
+MimeTypeMap::MimeTypeMap(std::string_view mimetypes_file, std::string_view default_mimetype)
+	: mimetypes_file_(mimetypes_file)
+	, default_mimetype_(default_mimetype)
 {
-	std::ifstream ifs{mimetypes_file()};
+	std::ifstream ifs{mimetypes_file_};
 	if(!ifs.is_open())
 		throw std::system_error(errno, std::generic_category());
 

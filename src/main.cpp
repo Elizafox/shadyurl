@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	mime_type::MimeTypeMap mtm{};
+	mime_type::MimeTypeMap mtm{"mimetypes.txt"};
 	server_state::ServerState state{tbl, mtm};
 
 	if(!logging::set_log_level(state.get_config_log_level()))

@@ -17,14 +17,23 @@ class MimeTypeMap
 {
 private:
 	std::unordered_map<std::string, std::string> mimetypes;
-
-protected:
-	const char* default_mimetype() const { return "application/octet-stream"; }
-	const char* mimetypes_file() const { return "mimetypes.txt"; }
+	std::string mimetypes_file_;
+	std::string default_mimetype_;
 public:
+	MimeTypeMap(std::string_view mimetypes_file, std::string_view default_mimetype);
+
+	MimeTypeMap(std::string_view mimetypes_file)
+		: MimeTypeMap(mimetypes_file, "application/octet-stream")
+	{
+	}
+
+	MimeTypeMap()
+		: MimeTypeMap("mimetypes.txt", "application/octet-stream")
+	{
+	}
+
 	std::string_view find_extension(std::string) const;
 	std::string_view find_filename(std::string) const;
-	MimeTypeMap();
 };
 
 } // namespace mime_type
