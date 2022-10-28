@@ -22,7 +22,11 @@ public:
 	class MultiPartSection
 	{
 	public:
-		using header_params_type = std::map<std::string, std::string>;
+		// Header params values may be either string or standalone
+		using header_params_value_type = std::variant<std::monostate, std::string>;
+		using header_params_type = std::map<std::string, header_params_value_type>;
+
+		// This maps the headers themselves, which may have a string or a map as a value
 		using header_type = std::variant<std::string, header_params_type>;
 		using header_map_type = std::map<std::string, header_type>;
 

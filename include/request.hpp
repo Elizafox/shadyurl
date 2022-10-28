@@ -248,7 +248,11 @@ handle_post(
 		}
 
 		auto hvmap = std::get<MultiPartSection::header_params_type>(hv);
-		std::string boundary{hvmap["boundary"]};
+		if(std::holds_alternative<std::monostate>(hvmap["boundary"]))
+		{
+			return send(bad_request(req, "Bad request"));
+		}
+		std::string boundary{std::get<std::string>(hvmap["boundary"])};
 		if(boundary.empty())
 		{
 			return send(bad_request(req, "Bad request"));
@@ -269,7 +273,11 @@ handle_post(
 			}
 
 			auto cdmap = std::get<MultiPartSection::header_params_type>(cd);
-			if(cdmap["name"] == "url")
+			if(std::holds_alternative<std::monostate>(cdmap["name"]))
+			{
+				continue;
+			}
+			if(std::get<std::string>(cdmap["name"]) == "url")
 			{
 				url = elem.get_data();
 				break;

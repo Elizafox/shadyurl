@@ -44,7 +44,7 @@ MultiPartSection::parse_header_value(std::string_view header)
 			data[k] = v;
 		}
 		else
-			data[token] = "";
+			data[token] = std::monostate{};
 	}
 
 	if(data.empty())
